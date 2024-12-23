@@ -5,7 +5,7 @@ This repository contains code for determining whether a vector-valued representa
 - Format: GAP file.
 - **Requirements:**
   - Install [GAP](https://www.gap-system.org/).
-  - Load the [QPA]([https://github.com/homalg-project/QPA](https://docs.gap-system.org/pkg/qpa/doc/chap1.html)) package.
+  - Load the [QPA](https://docs.gap-system.org/pkg/qpa/doc/chap1.html) package.
 - **Main Functionality:**
   - **`IsInduced`**: Checks if a representation `M` of a bound quiver is in the additive image of the free functor. 
     - **Input Example**: The file `7-star.g` (representation drawn in our paper) demonstrates input formatting.

@@ -35,7 +35,7 @@ This repository contains code for determining whether a vector-valued representa
   - For Dynkin types A and D, classifications of the additive image are provided in the paper.
   - For type E, checks were performed for GF(2) using this algorithm (see paper).
   - Outputs a plot of each orientation and indicates whether the free functor is additively surjective.
-  - For type E8, the algorithm terminates in approximately 40 minutes on a MacBook.
+  - For type E8, the algorithm terminates in approximately 40 minutes on a MacBook (by a more careful analysis one can limit the number of indecomposables further)
 
 
 

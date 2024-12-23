@@ -9,7 +9,7 @@ This repository contains code for determining whether a vector-valued representa
 - **Main Functionality:**
   - **`IsInduced`**: Checks if a representation `M` of a bound quiver is in the additive image of the free functor. 
     - **Input Example**: The file `7-star.g` (representation drawn in our paper) demonstrates input formatting.
-    - **Performance:** While the code is slow, it runs for GF(2) in a few seconds.
+    - **Performance:** While the code is slow, it runs for GF(2) on 7-star.g in a few seconds.
   - **`TestFromProjectives`**:
     - **Purpose:**
       - Takes an algebra of the form  kQ/relations, where Q is a quiver.

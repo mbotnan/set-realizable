@@ -5,9 +5,6 @@ import matplotlib.pyplot as plt
 import subprocess
 from matplotlib.backends.backend_pdf import PdfPages
 
-depth = 20 #How far into the AR quiver one departs from a projective. 
-field = "GF(2)" # Replace with GF(n)"
-
 def generate_all_permutations(edge_list):
     """
     Generate all permutations by replacing [a, b] with [b, a] for each sublist.
@@ -59,6 +56,10 @@ def plot_graph(edge_list, gapoutput):
 
 
 def check_add(n,gap_list):
+    """
+    Runs TestQuiet from set-real-routines.g on the given quiver given by gap_list.
+    """
+
     gap_code = f"""
     LoadPackage("QPA");
     lst := {gap_list};
@@ -77,7 +78,7 @@ def check_add(n,gap_list):
         last_line = result.stdout.strip().split('\n')[-1]
 
         if not last_line.isdigit():
-            raise ValueError("Something went wrong. Is the algebra finite-dimensional?")
+            raise ValueError("Something went wrong. Too few verticeS? Is the algebra finite-dimensional?")
 
         return int(last_line)
 
@@ -96,10 +97,49 @@ def quiver_check(quiver):
 
 
 
-def quiver_check_all(quiver):
-    perm = generate_all_permutations(quiver[1])
+def quiver_check_all(quiver, prnt=False):
+    """
+    Checks all orientations of a quiver for additively realizability. 
+    prnt=True outputs current orientation of total number of orientations
+    """
+
+    perm = generate_all_permutations(quiver[1]) 
     gap_list = convert_to_gap_format(perm)
-    result = [check_add(quiver[0],item) for item in gap_list]
+    result = [-1]*len(perm)
+    known_fails = []
+    known_wins = []
+    reachable = [reflections(graph) for graph in perm]
+    index_bw = [list(i for i, graph in enumerate(reachable) if x in graph) for x in perm]
+    for i in range(0, len(perm)):
+        if(prnt):
+            print("Permutation index: "+str(i+1)+"/"+str(len(perm)))
+        if(result[i] > -1):
+            continue
+        k = 0
+        resx=1
+        while(k<len(perm[i]) and resx==1):
+            if perm[i][:k+1] in known_fails:
+                resx=0
+            elif perm[i][:k+1] in known_wins:
+                k = k+1
+            else:
+                list_to_use = convert_to_gap_format([perm[i][:k+1]])
+                resx = check_add(quiver[0], list_to_use[0])
+                if resx == 1:
+                    known_wins.append(perm[i][:k+1])
+                else:
+                    known_fails.append(perm[i][:k+1])
+                k = k+1
+        result[i] = resx
+        if(resx == 1):
+            found_reflections = reachable[i]
+            indices_to_skip = [j for j, x in enumerate(perm) if x in found_reflections]
+            for k in indices_to_skip:
+                result[k] = resx
+        else:
+            for k in index_bw[i]:
+                result[k] = resx
+ 
     AR_explore(result)
     return perm, result
 
@@ -108,59 +148,79 @@ def AR_explore(result):
        print("Did not explore the full AR quiver; increase depth.")
    print("Fraction of additively realizable orientations: "+str(result.count(1))+"/"+str(len(result)))  
 
-def typeE(n):
-    #Works for n=6,7,8. When considering n=7, it first runs through n=6 to identify 
-    #restricted representations that are not realizable. Same for n=8.
-    edge_list = [
-    [1, 2, "e1"],
-    [2, 3, "e2"],
-    [3, 4, "e3"],
-    [3,5, "e4"],
-    [5,6, "e5"],
-    [6,7, "e6"],
-    [7,8, "e7"]]
 
-    permE6 = generate_all_permutations(edge_list[0:5])
-    gap_listE6 = convert_to_gap_format(permE6)
-    resE6 = [check_add(6,item) for item in gap_listE6]
-    if n == 6:
-        AR_explore(resE6)
-        return permE6, resE6
+def reflections(edge_list):
+    """
+    Generate all possible quivers one can reach from a given quiver (edge list) by 
+    iteratively reversing sources of out-degree at most 2.
+    """
+    from collections import defaultdict
 
-    permE7 = generate_all_permutations(edge_list[0:6])
-    permE7 = permE7
-    forbidden = []
-    gap_listE7 = convert_to_gap_format(permE7)
-    FailedIndicesE6 = [i for i, x in enumerate(resE6) if x == 0]
-    FailedOrientationsE6 = [permE6[index] for index in FailedIndicesE6]
-    forbidden.extend(FailedOrientationsE6)
-    skip_ind = [1 if item[:-1] not in forbidden else -10 for item in permE7]
-    resE7 = [check_add(7,gap_listE7[i]) if skip_ind[i]==1  else 0 for i in range(0,len(permE7))]
-    FailedIndicesE7 = [i for i, x in enumerate(resE7) if x == 0]
-    FailedOrientationsE7 = [permE7[index] for index in FailedIndicesE7]
-    forbidden.extend(FailedOrientationsE7)
+    def get_degrees(edges):
+        """Compute the in-degree and out-degree of each vertex."""
+        in_degree = defaultdict(int)
+        out_degree = defaultdict(int)
+        for u, v, _ in edges:
+            out_degree[u] += 1
+            in_degree[v] += 1
+        return in_degree, out_degree
 
-    if n==7:
-        AR_explore(resE7)
-        return permE7, resE7
-    permE8 = generate_all_permutations(edge_list)
-    gap_listE8 = convert_to_gap_format(permE8)
-    skip_ind2 = [1 if item[:-1] not in forbidden else -10 for item in permE8]
-    resE8 = [check_add(8,gap_listE8[i]) if skip_ind2[i]==1  else 0 for i in range(0,len(permE8))]
-    AR_explore(resE8)
-    return permE8, resE8
+    def reverse_edges(edges, source):
+        """Reverse all outgoing edges of the given source."""
+        new_edges = []
+        for u, v, label in edges:
+            if u == source:
+                new_edges.append([v, u, label])  # Reverse outgoing edge
+            else:
+                new_edges.append([u, v, label])  # Keep other edges unchanged
+        return new_edges
 
-      
-#all_permutations, result = typeE(6) #Checks all orientations of E6; should run in a couple of minutes.
-#with PdfPages("E6.pdf") as pdf:
-#    [plot_graph(all_permutations[i], result[i]) for i in range(0,len(result))]
+    def find_sources(in_degree, out_degree):
+        """Find all vertices with in-degree 0 (sources) and out-degree at most 2."""
+        return [node for node in out_degree if in_degree[node] == 0 and out_degree[node] <= 2]
 
-Q = [4,[[2,1, "e1"],[3,1, "e2"], [4,1, "e3"]]] # D4 quiver fixed inward orientations
-quiver_check(Q)
+    results = []
+    queue = [edge_list]
+    seen = set()
 
-all_permutations, result = quiver_check_all(Q) #Check all orientations of D4
-with PdfPages("D4.pdf") as pdf:
+    while queue:
+        current_edges = queue.pop(0)
+        edge_tuple = tuple(tuple(edge) for edge in current_edges)  # Convert to hashable type
+
+        if edge_tuple in seen:
+            continue
+
+        seen.add(edge_tuple)
+        results.append(current_edges)
+
+        in_degree, out_degree = get_degrees(current_edges)
+        sources = find_sources(in_degree, out_degree)
+
+        for source in sources:
+            new_edges = reverse_edges(current_edges, source)
+            queue.append(new_edges)
+
+    return results[1:]
+
+depth = 20 #How far into the AR quiver one departs from a projective. 
+field = "GF(2)" # Replace with GF(n)"
+    
+QD4 = [4,[[2,1, "e1"],[3,1, "e2"], [4,1, "e3"]]] # D4 quiver fixed inward orientations
+#QE8 = [8, [[2, 3, "e2"], [3, 4, "e3"], [3,5, "e4"], [5,6, "e5"], [1,2, "e1"], [6,7, "e6"], [7,8, "e7"] ]]
+#QE6 = [6, [[2, 3, "e2"], [3, 4, "e3"], [3,5, "e4"], [5,6, "e5"], [1,2, "e1"]]]
+#QE7 = [7, [[2, 3, "e2"], [3, 4, "e3"], [3,5, "e4"], [5,6, "e5"], [1,2, "e1"], [6,7, "e6"]]]
+QD4T = [5, [[1,5, "e1"],[4,1, "e2"], [3,1, "e3"], [2,1, "e4"]]] #Not finite rep. type. 
+
+#Check fixed orientation
+quiver_check(QD4T) 
+
+#Check all orientations of the quiver
+all_permutations, result = quiver_check_all(QD4, prnt=True) 
+
+#Produce graphs
+with PdfPages("Quiver.pdf") as pdf:
     [plot_graph(all_permutations[i], result[i]) for i in range(0,len(result))]
+
 
 
 

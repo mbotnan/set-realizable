@@ -1,5 +1,5 @@
 # Set-Realizable
-This repository contains code for determining whether a vector-valued representation of a finite category is in the additive image of the free functor. Details can be found in our accompanying paper.
+This repository contains code for determining whether a vector-valued representation of a finite category is in the additive image of the free functor. Details can be found in our accompanying [paper](https://arxiv.org/abs/2501.09132).
 
 ### `set-real-routines.g`
 - Format: GAP file.
